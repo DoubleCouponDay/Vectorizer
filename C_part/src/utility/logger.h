@@ -1,5 +1,4 @@
-#ifndef LOGGER_H
-#define LOGGER_H
+#pragma once
 
 void logger(const char* tag, const char* message, ...);
 
@@ -12,5 +11,3 @@ void logger(const char* tag, const char* message, ...);
 #define LOG_WARN(fmt, args...) logger("WARNING", "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, ##args)
 #define LOG_ERR(fmt, args...) logger("ERROR", "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, ##args)
 #endif
-
-#endif /* LOG_H */

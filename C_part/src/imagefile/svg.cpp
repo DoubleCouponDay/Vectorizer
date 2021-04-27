@@ -11,9 +11,8 @@
 #include "utility/logger.h"
 #include "chunkmap.h"
 
-const char* OUTPUT_PATH = "output.svg";
-const int SHAPE_SIZE = 41;
-const int SMALLEST_PATH_SIZE = 4;
+constexpr int SHAPE_SIZE = 41;
+constexpr int SMALLEST_PATH_SIZE = 4;
 
 #ifdef _WIN32
 const char* NEW_LINE = "\r\n";

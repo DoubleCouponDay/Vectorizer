@@ -1,50 +1,68 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdexcept>
+#include <iostream>
 
 #include "entrypoint.h"
 #include "nsvg/usage.h"
+#include "nsvg/mapping.h"
+#include "nsvg/mapparser.h"
 #include "utility/error.h"
 #include "utility/logger.h"
 #include "imagefile/pngfile.h"
 #include "imagefile/svg.h"
+#include "nsvg/ishapefinder.h"
+#include "nsvg/bobsweep.h"
+#include "nsvg/bobsweeperv2.h"
+#include "nsvg/dcdfiller.h"
 
 const char *format1_p = "png";
 const char *format2_p = "jpeg";
 
-typedef nsvg_ptr (*algorithm)(const image&, vectorize_options);
-algorithm target_algorithm = dcdfill_for_nsvg;
+std::vector<char> emergency_memory = std::vector<char>( 16384ull, '0' );
+
+std::unique_ptr<IShapeFinder> shape_finder = std::make_unique<bobsweeper>();
 
 int execute_program(char* input_file_p, int chunk_size, float threshold, char* output_file_p) {
-	image img = convert_png_to_image(input_file_p);
-
-	if (isBadError())
+	try
 	{
-		LOG_ERR("convert_png_to_image failed with: %d", getLastError());
-		return getAndResetErrorCode();
+		if (emergency_memory.empty())
+			emergency_memory = std::vector<char>(16384ull, '0');
+
+		image img = convert_png_to_image(input_file_p);
+
+		vectorize_options options = {
+			input_file_p,
+			chunk_size,
+			threshold
+		};
+
+		chunkmap map{ img, options.chunk_size };
+
+		bobsweeperv2{}.process_image(img, options.shape_colour_threshhold, "your boi.svg");
+
+	}
+	catch (std::bad_alloc& ex)
+	{
+		if (emergency_memory.size())
+		{
+			emergency_memory.clear();
+			std::cerr << "Vectorizer Ran Out of Memory: " << ex.what() << std::endl;
+			throw ex;
+		}
+	}
+	catch (std::invalid_argument& e)
+	{
+		std::cerr << "Vectorizer failed with an invalid argument: " << e.what() << std::endl;
+		return BAD_ARGUMENT_ERROR;
+	}
+	catch (std::exception& e)
+	{
+		std::cerr << "Vectorizer failed with an unknown exception: " << e.what() << std::endl;
+		return UNKNOWN_ERROR;
 	}
 
-	vectorize_options options = {
-		input_file_p,
-		chunk_size,
-		threshold
-	};
-
-	auto nsvg = target_algorithm(img, options);
-	int code = getLastError();
-
-	if(isBadError() || nsvg == NULL) {
-		LOG_INFO("vectorize_image failed with code: %d", code);
-		return getAndResetErrorCode();
-	}
-	bool result = write_svg_file(nsvg);
-	code = getLastError();
-
-	if(result == false || isBadError()) {
-		LOG_INFO("write_svg_file failed with code: %d", code);
-		return getAndResetErrorCode();
-	}
-
-	return getAndResetErrorCode();
+	return SUCCESS_CODE;
 }
 
 
@@ -109,10 +127,10 @@ int set_algorithm(int algo)
 	switch (algo)
 	{
 	case 0:
-		target_algorithm = dcdfill_for_nsvg;
+		shape_finder = std::make_unique<dcdfiller>();
 		break;
 	case 1:
-		target_algorithm = bobsweep_for_nsvg;
+		shape_finder = std::make_unique<bobsweeper>();
 		break;
 	default:
 		return BAD_ARGUMENT_ERROR;

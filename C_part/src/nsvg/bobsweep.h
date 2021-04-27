@@ -1,9 +1,11 @@
 #pragma once
 
-
-#include <nanosvg.h>
-
-#include "../image.h"
-#include "../chunkmap.h"
+#include "ishapefinder.h"
 
 void sweepfill_chunkmap(chunkmap& map, float threshold);
+
+class bobsweeper : public IShapeFinder
+{
+public:
+    void fill_chunkmap(chunkmap& map, float threshold) override;
+};

@@ -471,3 +471,7 @@ void sweepfill_chunkmap(chunkmap& map, float threshold)
     return;
 }
 
+void bobsweeper::fill_chunkmap(chunkmap& map, float threshold)
+{
+    sweepfill_chunkmap(map, threshold);
+}

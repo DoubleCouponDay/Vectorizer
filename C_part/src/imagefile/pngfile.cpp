@@ -181,7 +181,7 @@ image convert_png_to_image(char* fileaddress) {
 }
 
 
-void write_image_to_png(const image& img, char* fileaddress)
+void write_image_to_png(const image& img, const char* fileaddress)
 {
     if (img.pixels.empty() || !fileaddress) {
         LOG_ERR("null arguments given to write_image_to_png");
@@ -356,7 +356,7 @@ void iterate_through_shape(const std::list<std::shared_ptr<pixelchunk>>& chunks,
     }
 }
 
-void write_chunkmap_to_png(const chunkmap& map, char* fileaddress) {
+void write_chunkmap_to_png(const chunkmap& map, const char* fileaddress) {
     LOG_INFO("Writing chunkmap to '%s'", fileaddress);
     if (map.width() < 1 || map.height() < 1)
     {

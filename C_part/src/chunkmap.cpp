@@ -7,7 +7,6 @@
 
 #include "image.h"
 #include "utility/error.h"
-#include "utility/one_d.h"
 #include "imagefile/pngfile.h"
 #include "utility/logger.h"
 

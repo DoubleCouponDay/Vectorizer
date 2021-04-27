@@ -8,4 +8,4 @@
 
 bool write_svg_file(const nsvg_ptr& input);
 
-extern const char* OUTPUT_PATH;
+constexpr char* OUTPUT_PATH = "output.svg";

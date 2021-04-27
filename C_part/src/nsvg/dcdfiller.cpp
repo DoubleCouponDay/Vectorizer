@@ -181,3 +181,8 @@ void fill_chunkmap(chunkmap& map, const vectorize_options& options) {
         }
     }
 }
+
+void dcdfiller::fill_chunkmap(chunkmap& map, float threshold)
+{
+    fill_chunkmap(map, threshold);
+}
