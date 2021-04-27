@@ -12,6 +12,6 @@ void free_nsvg(NSVGimage* input);
 
 typedef std::unique_ptr<NSVGimage, decltype(&free_nsvg)> nsvg_ptr;
 
-nsvg_ptr dcdfill_for_nsvg(const image& input, vectorize_options options);
-nsvg_ptr bobsweep_for_nsvg(const image& input, vectorize_options options);
+nsvg_ptr dcdfill_for_nsvg(const Image& input, vectorize_options options);
+nsvg_ptr bobsweep_for_nsvg(const Image& input, vectorize_options options);
 

@@ -1,71 +1,77 @@
 #pragma once
 
-typedef unsigned char byte;
-
-struct pixel
+namespace vectorizer
 {
-    pixel() : R(0), G(0), B(0) {}
-    pixel(byte R, byte G, byte B) : R(R), G(G), B(B) {}
-    pixel(const pixel& other) : R(other.R), G(other.G), B(other.B) {}
+    typedef unsigned char byte;
 
-    inline pixel &operator=(const pixel& other) { R = other.R; G = other.G; B = other.B; return *this; }
+    struct pixel
+    {
+        pixel() : R(0), G(0), B(0) {}
+        pixel(byte R, byte G, byte B) : R(R), G(G), B(B) {}
+        pixel(const pixel& other) : R(other.R), G(other.G), B(other.B) {}
 
-    byte R, G, B;
+        inline pixel& operator=(const pixel& other) { R = other.R; G = other.G; B = other.B; return *this; }
 
-    bool is_similar_to(const pixel& other, float threshold);
-};
+        byte R, G, B;
 
-struct pixelInt
-{
-    pixelInt() : R(0), G(0), B(0) {}
-    pixelInt(int r, int g, int b) : R(r), G(g), B(b) {}
-    pixelInt(const pixel& other) : R(other.R), G(other.G), B(other.B) {}
+        bool is_similar_to(const pixel& other, float threshold);
+    };
 
-    int R, G, B;
+    struct pixelInt
+    {
+        pixelInt() : R(0), G(0), B(0) {}
+        pixelInt(int r, int g, int b) : R(r), G(g), B(b) {}
+        pixelInt(const pixel& other) : R(other.R), G(other.G), B(other.B) {}
 
-    inline pixelInt& operator=(const pixelInt& other) { R = other.R; G = other.G; B = other.B; return *this; }
-    inline pixelInt& operator+=(const pixel& p) { R += p.R; G += p.G; B += p.B; return *this; }
+        int R, G, B;
 
-    bool is_similar_to(const pixelInt& other, float threshold);
-};
+        inline pixelInt& operator=(const pixelInt& other) { R = other.R; G = other.G; B = other.B; return *this; }
+        inline pixelInt& operator+=(const pixel& p) { R += p.R; G += p.G; B += p.B; return *this; }
 
-struct pixelD
-{
-    pixelD() : R(0.0), G(0.0), B(0.0) {}
-    pixelD(float R, float G, float B) : R(R), G(G), B(B) {}
-    pixelD(double R, double G, double B) : R(R), G(G), B(B) {}
-    pixelD(const pixelD& p) : R(p.R), G(p.G), B(p.B) {}
-    pixelD(const pixel& p) : R((double)p.R / 255.0), G((double)p.G / 255.0), B((double)p.B / 255.0) {}
+        bool is_similar_to(const pixelInt& other, float threshold);
+    };
 
-    double R, G, B;
+    struct pixelD
+    {
+        pixelD() : R(0.0), G(0.0), B(0.0) {}
+        pixelD(float R, float G, float B) : R(R), G(G), B(B) {}
+        pixelD(double R, double G, double B) : R(R), G(G), B(B) {}
+        pixelD(const pixelD& p) : R(p.R), G(p.G), B(p.B) {}
+        pixelD(const pixel& p) : R((double)p.R / 255.0), G((double)p.G / 255.0), B((double)p.B / 255.0) {}
 
-    inline operator pixel() { return { (byte)(R * 255.0), (byte)(G * 255.0), (byte)(B * 255.0) }; }
+        double R, G, B;
 
-    static pixelD lerp(pixelD a, pixelD b, float t);
-};
+        inline operator pixel() const { return { (byte)(R * 255.0), (byte)(G * 255.0), (byte)(B * 255.0) }; }
 
-// RGB floating point color struct
-// Values to be stored as normalized values (0-1)
-struct pixelF
-{
-    pixelF() : R(0.f), G(0.f), B(0.f) {}
-    pixelF(float R, float G, float B) : R(R), G(G), B(B) {}
-    pixelF(const pixelF& other) : R(other.R), G(other.G), B(other.G) {}
-    pixelF(const pixel& p) : R((float)p.R / 255.f), G((float)p.G / 255.f), B((float)p.B / 255.f) {}
-    pixelF(const pixelD& p) : R((float)p.R), G((float)p.G), B((float)p.B) {}
+        inline pixelD& operator+=(const pixelD& other) { R += other.R; G += other.G; B += other.B; return *this; }
+        inline pixelD operator/(double fac) const { return pixelD{ R / fac, G / fac, B / fac }; }
 
-    float R, G, B;
+        static pixelD lerp(pixelD a, pixelD b, float t);
+    };
 
-    inline operator pixel() { return { (byte)(R * 255.f), (byte)(G * 255.f), (byte)(B * 255.f) }; }
-    inline operator pixelD() { return { R, G, B }; }
+    // RGB floating point color struct
+    // Values to be stored as normalized values (0-1)
+    struct pixelF
+    {
+        pixelF() : R(0.f), G(0.f), B(0.f) {}
+        pixelF(float R, float G, float B) : R(R), G(G), B(B) {}
+        pixelF(const pixelF& other) : R(other.R), G(other.G), B(other.G) {}
+        pixelF(const pixel& p) : R((float)p.R / 255.f), G((float)p.G / 255.f), B((float)p.B / 255.f) {}
+        pixelF(const pixelD& p) : R((float)p.R), G((float)p.G), B((float)p.B) {}
 
-    pixelF& operator=(const pixelF& other) = default;
+        float R, G, B;
 
-    inline pixelF& operator+=(const pixel& p) { R += p.R; G += p.G; B += p.B; return *this; }
-    inline pixelF operator*(float fac) const { return pixelF{ R * fac, G * fac, B * fac }; }
-    inline pixelF operator/(float fac) const { return pixelF{ R / fac, G / fac, B / fac }; }
+        inline operator pixel() { return { (byte)(R * 255.f), (byte)(G * 255.f), (byte)(B * 255.f) }; }
+        inline operator pixelD() { return { R, G, B }; }
 
-    static pixelF lerp(pixelF a, pixelF b, float t);
+        pixelF& operator=(const pixelF& other) = default;
 
-    bool is_similar_to(const pixelF& other, float threshold);
-};
+        inline pixelF& operator+=(const pixel& p) { R += p.R; G += p.G; B += p.B; return *this; }
+        inline pixelF operator*(float fac) const { return pixelF{ R * fac, G * fac, B * fac }; }
+        inline pixelF operator/(float fac) const { return pixelF{ R / fac, G / fac, B / fac }; }
+
+        static pixelF lerp(pixelF a, pixelF b, float t);
+
+        bool is_similar_to(const pixelF& other, float threshold);
+    };
+}

@@ -2,10 +2,13 @@
 
 #include "chunkmap.h"
 
-class IShapeFinder
+namespace vectorizer
 {
-public:
-    virtual ~IShapeFinder() {}
+    class IShapeFinder
+    {
+    public:
+        virtual ~IShapeFinder() {}
 
-    virtual void fill_chunkmap(chunkmap& map, float threshold) = 0;
-};
+        virtual void fill_chunkmap(chunkmap& map, float threshold) = 0;
+    };
+}

@@ -29,7 +29,7 @@ int execute_program(char* input_file_p, int chunk_size, float threshold, char* o
 		if (emergency_memory.empty())
 			emergency_memory = std::vector<char>(16384ull, '0');
 
-		image img = convert_png_to_image(input_file_p);
+		Image img = convert_png_to_image(input_file_p);
 
 		vectorize_options options = {
 			input_file_p,

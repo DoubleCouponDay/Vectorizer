@@ -2,4 +2,4 @@
 
 #include "image.h"
 
-void quantize_image(image* subject, int num_colours);
+void quantize_image(Image* subject, int num_colours);

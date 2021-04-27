@@ -10,7 +10,7 @@
 #include "imagefile/pngfile.h"
 #include "utility/logger.h"
 
-void chunkmap::iterate_pixels(const image& input, size_t chunk_size) {
+void vectorizer::chunkmap::iterate_pixels(const Image& input, size_t chunk_size) {
     for (int x = 0; x < (int)width(); ++x)
     {
         for (int y = 0; y < (int)height(); ++y)
@@ -57,21 +57,21 @@ void chunkmap::iterate_pixels(const image& input, size_t chunk_size) {
     }
 }
 
-chunkmap::chunkmap() : groups(), shape_list(0)
+vectorizer::chunkmap::chunkmap() : groups(), shape_list(0)
 {
 }
 
-chunkmap::chunkmap(const image& image, int chunk_size) : groups(), shape_list()
+vectorizer::chunkmap::chunkmap(const Image& Image, int chunk_size) : groups(), shape_list()
 {
-    int width = (int)ceilf((float)image.width() / (float)chunk_size);
-    int height = (int)ceilf((float)image.height() / (float)chunk_size);
+    int width = (int)ceilf((float)Image.width() / (float)chunk_size);
+    int height = (int)ceilf((float)Image.height() / (float)chunk_size);
 
     groups.resize(width, std::vector<std::shared_ptr<pixelchunk>>(height));
 
-    iterate_pixels(image, chunk_size);
+    iterate_pixels(Image, chunk_size);
 }
 
-chunkmap& chunkmap::operator=(chunkmap &&other)
+vectorizer::chunkmap& chunkmap::operator=(chunkmap &&other)
 { 
     groups = std::move(other.groups); 
     shape_list.clear(); 
@@ -82,10 +82,10 @@ chunkmap& chunkmap::operator=(chunkmap &&other)
 }
 
 
-bool chunkmap::chunks_to_file(char *file) const
+bool vectorizer::chunkmap::chunks_to_file(char *file) const
 {
     LOG_INFO("Writing Chunkmap (%d x %d) to '%s'", width(), height(), file);
-    image im{width(), height()};
+    Image im{width(), height()};
 
     for (int x = 0; x < width(); ++x)
     {
@@ -98,17 +98,17 @@ bool chunkmap::chunks_to_file(char *file) const
     return im.to_png(file);
 }
 
-bool chunkmap::shapes_to_file(char *file) const
+bool vectorizer::chunkmap::shapes_to_file(char *file) const
 {
     write_chunkmap_to_png(*this, file);
 
     return getAndResetErrorCode() != SUCCESS_CODE;
 }
 
-bool chunkmap::borders_to_file(char *file) const
+bool vectorizer::chunkmap::borders_to_file(char *file) const
 {
     LOG_INFO("Writing Chunkmap (%d x %d) borders to '%s'", width(), height(), file);
-    image im{width(), height()};
+    Image im{width(), height()};
 
     for (auto& s : shape_list)
     {

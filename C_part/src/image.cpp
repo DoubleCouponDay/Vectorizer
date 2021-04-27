@@ -10,20 +10,55 @@
 
 #include "imagefile/pngfile.h"
 
-bool image::to_png(const char *file) const
+namespace vectorizer
 {
-    write_image_to_png(*this, file);
-
-    return getAndResetErrorCode() != SUCCESS_CODE;
-}
-
-void image::clear(pixel color)
-{
-    for (int x = 0; x < width(); ++x)
+    const pixel& Image::get(int x, int y) const
     {
-        for (int y = 0; y < height(); ++y)
+        return pixels[x][y];
+    }
+
+    pixel& Image::get(int x, int y)
+    {
+        return pixels[x][y];
+    }
+
+    int Image::get_width() const
+    {
+        return width();
+    }
+
+    int Image::get_height() const
+    {
+        return height();
+    }
+
+    void Image::set(int x, int y, pixel pix)
+    {
+        pixels[x][y] = pix;
+    }
+
+    bool Image::empty() const
+    {
+        return width() < 1 || height() < 1;
+    }
+
+    bool Image::to_png(const char* file) const
+    {
+        write_image_to_png(*this, file);
+
+        return getAndResetErrorCode() != SUCCESS_CODE;
+    }
+
+    void Image::clear(pixel color)
+    {
+        for (int x = 0; x < width(); ++x)
         {
-            set(x, y, color);
+            for (int y = 0; y < height(); ++y)
+            {
+                set(x, y, color);
+            }
         }
     }
+
+
 }

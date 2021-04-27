@@ -21,7 +21,7 @@
 #include "utility/logger.h"
 
 //entry point of the file
-nsvg_ptr dcdfill_for_nsvg(const image& input, vectorize_options options) {
+nsvg_ptr dcdfill_for_nsvg(const Image& input, vectorize_options options) {
     LOG_INFO("DCDFill with threshold: %f, chunk_size: %d", options.shape_colour_threshhold, options.chunk_size);
     chunkmap map{input, options.chunk_size};
     
@@ -57,7 +57,7 @@ nsvg_ptr dcdfill_for_nsvg(const image& input, vectorize_options options) {
     return nsvg;
 }
 
-nsvg_ptr bobsweep_for_nsvg(const image& input, vectorize_options options) {
+nsvg_ptr bobsweep_for_nsvg(const Image& input, vectorize_options options) {
     
     chunkmap map{input, options.chunk_size};
 
