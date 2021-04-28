@@ -467,7 +467,18 @@ namespace vectorizer
 				}
 			}
 
-			LOG_INFO("[BobSweeperV2] Scanned %u shapes", _shapes.size());
+			LOG_INFO("Scanned %u shapes", _shapes.size());
+			LOG_INFO("Sorting...");
+
+
+			struct
+			{
+				bool operator()(const scan::shape& lhs, const scan::shape& rhs) const { return lhs.bounds().area() > rhs.bounds().area(); }
+			} customLess;
+
+			std::sort(_shapes.begin(), _shapes.end(), customLess);
+
+			LOG_INFO("Sorted shapes");
 		}
 
 		void pixel_scan::average_colours()
