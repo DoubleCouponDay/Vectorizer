@@ -12,6 +12,11 @@
 
 namespace vectorizer
 {
+    Image::Image(std::string path)
+    {
+        this->operator=(std::move(convert_png_to_image(path.c_str())));
+    }
+
     const pixel& Image::get(int x, int y) const
     {
         return pixels[x][y];
@@ -22,12 +27,12 @@ namespace vectorizer
         return pixels[x][y];
     }
 
-    int Image::get_width() const
+    size_t Image::get_width() const
     {
         return width();
     }
 
-    int Image::get_height() const
+    size_t Image::get_height() const
     {
         return height();
     }

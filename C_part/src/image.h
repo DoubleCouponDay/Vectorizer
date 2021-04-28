@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 
 #include "utility/pixel.h"
 #include "utility/vec.h"
@@ -12,8 +13,8 @@ namespace vectorizer
     {
     public:
 
-        virtual int get_width() const = 0;
-        virtual int get_height() const = 0;
+        virtual size_t get_width() const = 0;
+        virtual size_t get_height() const = 0;
 
         virtual pixel get_pixel(int x, int y) const = 0;
         inline virtual pixel get_pixel(vector2i pos) const { return this->get_pixel(pos.x, pos.y); }
@@ -28,6 +29,7 @@ namespace vectorizer
         Image() : pixels() {}
         Image(size_t width, size_t height) : pixels(width, std::vector<pixel>(height)) {}
         Image(Image&& other) noexcept : pixels(std::move(other.pixels)) {}
+        explicit Image(std::string path);
 
         Image(const Image& other) = delete;
 
@@ -44,8 +46,8 @@ namespace vectorizer
         inline pixel get_pixel(int x, int y) const override { return get(x, y); }
         inline void set_pixel(int x, int y, pixel pix) override { set(x, y, pix); }
 
-        virtual int get_width() const override;
-        virtual int get_height() const override;
+        virtual size_t get_width() const override;
+        virtual size_t get_height() const override;
 
         void set(int x, int y, pixel pix);
 

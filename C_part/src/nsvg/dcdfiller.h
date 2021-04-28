@@ -5,10 +5,13 @@
 
 #include "ishapefinder.h"
 
-void fill_chunkmap(chunkmap& map, const vectorize_options& options);
-
-class dcdfiller : public IShapeFinder
+namespace vectorizer
 {
-public:
-	void fill_chunkmap(chunkmap& map, float threshold) override;
-};
+	void fill_chunkmap(chunkmap& map, const vectorize_options& options);
+
+	class dcdfiller : public IShapeFinder
+	{
+	public:
+		void fill_chunkmap(chunkmap& map, float threshold) override;
+	};
+}

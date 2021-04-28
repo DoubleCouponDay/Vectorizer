@@ -16,63 +16,188 @@
 
 namespace vectorizer
 {
-	class shape
+	void bobsweeperv2::fill_chunkmap(chunkmap& map, float threshold)
 	{
-		pixelF _color;
-		bounds2di _bounds;
+		scan::pixel_scan scan = scan::pixel_scan(map);
 
-		size_t _chunk_count;
-		sizei _image_size;
-		std::vector<bool> _chunks; // size of image
-		std::vector<vector2> _outer_edge;
-		std::vector<vector2i> _outer_edge_thingo;
+		scan.scan_for_shapes(threshold);
 
-	public:
-		shape(pixelF color, sizei image_size, vector2i first_chunk) :
+		scan.calculate_borders();
+
+		Image img{ map.width(), map.height() };
+
+		for (int i = 0; i < scan.shapes().size(); ++i)
+		{
+			auto& s = scan.shapes()[i];
+
+			for (auto& edge : s.outer_edge_points())
+			{
+				img.set(edge.x, edge.y, s.color());
+			}
+		}
+
+		img.to_png("epic borders.png");
+
+		Image shape_img{ map.width(), map.height() };
+		for (auto& shape : scan.shapes())
+		{
+			for (int x = shape.bounds().min.x; x <= shape.bounds().max.x; ++x)
+			{
+				for (int y = shape.bounds().min.y; y < shape.bounds().max.y; ++y)
+				{
+					if (shape.has(vector2i{ x,y }))
+						shape_img.set(x, y, shape.color());
+				}
+			}
+		}
+
+		shape_img.to_png("epic shapes.png");
+
+		LOG_INFO("[BobSweeperv2] Found %u shapes", scan.shapes().size());
+
+
+	}
+
+	void bobsweeperv2::process_image(const IPixelAccess& pixels, float threshold, std::string svg_path)
+	{
+		LOG_INFO("[BobSweeperV2] with threshold: %.1f", threshold);
+
+		scan::pixel_scan thing = scan::pixel_scan(pixels);
+
+		thing.scan_for_shapes(threshold);
+		//thing.average_colors();
+		thing.calculate_borders();
+
+		Image border_img{ (size_t)pixels.get_width(), (size_t)pixels.get_height() };
+
+		for (int i = 0; i < thing.shapes().size(); ++i)
+		{
+			auto& s = thing.shapes()[i];
+
+			for (auto& edge : s.outer_edge_points())
+			{
+				border_img.set(edge.x, edge.y, s.color());
+			}
+		}
+
+		border_img.to_png("epic borders.png");
+
+		Image shape_img = std::move(border_img);
+		shape_img.clear();
+		for (auto& shape : thing.shapes())
+		{
+			for (int x = shape.bounds().min.x; x <= shape.bounds().max.x; ++x)
+			{
+				for (int y = shape.bounds().min.y; y <= shape.bounds().max.y; ++y)
+				{
+					if (shape.has(vector2i{ x,y }))
+						shape_img.set(x, y, shape.color());
+				}
+			}
+		}
+
+		shape_img.to_png("epic shapes.png");
+
+
+		std::vector<scan::shape> sorted_shapes = thing.shapes();
+
+		struct
+		{
+			bool operator()(const scan::shape& lhs, const scan::shape& rhs) const { return lhs.bounds().area() > rhs.bounds().area(); }
+		} customLess;
+
+		std::sort(sorted_shapes.begin(), sorted_shapes.end(), customLess);
+
+		std::ofstream out_svg{ svg_path };
+
+		if (!out_svg)
+		{
+			LOG_ERR("[BobSweeperV2] Failed to open '%s' for writing.. :/", svg_path.c_str());
+			throw std::invalid_argument("Unusable file path to write to");
+		}
+
+		out_svg << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?> <svg xmlns = \"http://www.w3.org/2000/svg\" xmlns:xlink = \"http://www.w3.org/1999/xlink\" version = \"2\" width = \"";
+		out_svg << (float)pixels.get_width();
+		out_svg << "\" height = \"";
+		out_svg << (float)pixels.get_height();
+		out_svg << "\" viewport = \"0 0 " << (float)pixels.get_width() << " " << (float)pixels.get_height() << "\" >";
+		out_svg << std::endl;
+
+		for (auto& shape : sorted_shapes)
+		{
+			out_svg << "<path fill=\"rgb(" << shape.color().R * 255.f << ", " << shape.color().G * 255.f << ", " << shape.color().B * 255.f << ")\" d=\"";
+			out_svg << "M " << shape.outer_edge()[0].x << " " << shape.outer_edge()[0].y << " ";
+			for (int i = 1; i < shape.outer_edge().size(); ++i)
+			{
+				out_svg << " L " << shape.outer_edge()[i].x << " " << shape.outer_edge()[i].y;
+			}
+			out_svg << " Z\" />" << std::endl;
+		}
+
+		out_svg << " </svg>";
+	}
+
+	namespace scan
+	{
+		shape::shape(pixelF color, sizei image_size, vector2i first_chunk) :
 			_color(color),
-			_image_size(image_size),
+			_chunks_size(image_size),
 			_chunks(image_size.x* image_size.y),
 			_bounds(first_chunk.x, first_chunk.y, first_chunk.x, first_chunk.y),
-			_chunk_count(1)
+			_chunk_count(1),
+			_chunks_offset{ 0, 0 }
 		{
-			_chunks[indexer()(first_chunk.x, first_chunk.y)] = true;
-			_bounds.max.x = _bounds.min.x = first_chunk.x;
-			_bounds.max.y = _bounds.min.y = first_chunk.y;
+			_chunks[indexer()(first_chunk)] = true;
 		}
 
-		shape(const shape& other) = default;
-		shape(shape&& other) :
-			_color(other._color),
-			_bounds(other._bounds),
-			_chunk_count(other._chunk_count),
-			_image_size(other._image_size),
-			_chunks(std::move(other._chunks)),
-			_outer_edge(std::move(other._outer_edge)),
-			_outer_edge_thingo(std::move(other._outer_edge_thingo))
+		shape::shape(std::istream& read_stream)
 		{
-			other._color = pixelF{ 0.f, 0.f, 0.f };
-			other._bounds = bounds2di{ {0, 0}, {0, 0} };
-			other._chunk_count = 0;
-			other._image_size = sizei{ 0,0 };
-			other._chunks.clear();
-			other._outer_edge.clear();
-			other._outer_edge_thingo.clear();
+			this->shape::Deserialize(read_stream);
 		}
 
-		shape& operator=(const shape& other) = default;
+		pixelF shape::color() const
+		{
+			return _color;
+		}
 
-		inline pixelF color() const { return _color; }
-		inline void set_color(pixelF color) { _color = color; }
+		void shape::set_color(pixelF color)
+		{
+			_color = color;
+		}
 
-		inline const bounds2di& bounds() const { return _bounds; }
-		inline const size_t& chunk_count() const { return _chunk_count; }
-		inline const std::vector<bool>& chunks() const { return _chunks; }
-		inline const std::vector<vector2>& outer_edge() const { return _outer_edge; }
-		inline const std::vector<vector2i>& thingo() const { return _outer_edge_thingo; }
-		inline constexpr dimensional_indexer indexer() const { return { _image_size.x }; }
-		inline bool has(vector2i spot) const { if (spot.x < 0 || spot.y < 0 || spot.x >= _image_size.x || spot.y >= _image_size.y) return false; return _chunks[indexer()(spot)]; }
+		const bounds2di& shape::bounds() const
+		{
+			return _bounds;
+		}
 
-		inline void insert_chunk(vector2i at)
+		const size_t& shape::chunk_count() const
+		{
+			return _chunk_count;
+		}
+
+		const std::vector<bool>& shape::chunks() const
+		{
+			return _chunks;
+		}
+
+		const std::vector<vector2>& shape::outer_edge() const
+		{
+			return _outer_edge;
+		}
+
+		const std::vector<vector2i>& shape::outer_edge_points() const
+		{
+			return _outer_edge_points;
+		}
+
+		bool shape::has(vector2i spot) const
+		{
+			if (spot.x < 0 || spot.y < 0 || spot.x >= _chunks_size.x || spot.y >= _chunks_size.y) 
+				return false; 
+			return _chunks[indexer()(spot - _chunks_offset)];
+		}
+
+		void shape::insert_chunk(vector2i at)
 		{
 			if (at.x < _bounds.min.x)
 				_bounds.min.x = at.x;
@@ -83,49 +208,171 @@ namespace vectorizer
 			if (at.y > _bounds.max.y)
 				_bounds.max.y = at.y;
 
-			_chunks[indexer()(at.x, at.y)] = true;
+			_chunks[indexer()(at - _chunks_offset)] = true;
 			++_chunk_count;
 		}
 
-		inline void insert_outer_edge(vector2 at)
+		void shape::insert_outer_edge(vector2 at)
 		{
 			_outer_edge.push_back(at);
 		}
 
-		inline void insert_epico(vector2i at)
+		void shape::insert_outer_edge_point(vector2i at)
 		{
-			_outer_edge_thingo.push_back(at);
+			_outer_edge_points.push_back(at);
 		}
-	};
 
-	class thingo
-	{
-		std::vector<shape> _shapes;
-
-		std::vector<pixelF> _image;
-		std::vector<int> _image_shapes;
-		sizei _image_size;
-
-		bool _has_borders = false;
-
-		vector2i first_empty_spot()
+		void shape::compress_chunks()
 		{
-			vector2i pos = { 0, 0 };
+			if (_chunks_offset != vector2i{0, 0})
+				return;
+
+			std::vector<bool> new_chunks = std::vector<bool>();
+			new_chunks.resize((_bounds.width() + 1) * (_bounds.height() + 1));
+			dimensional_indexer indexer{ _bounds.width() + 1 };
+
+			for (int x = _bounds.min.x; x < _bounds.max.x; ++x)
+			{
+				for (int y = _bounds.min.y; y < _bounds.max.y; ++y)
+				{
+					new_chunks[indexer(x - _bounds.min.x, y - _bounds.min.y)] = _chunks[this->indexer()(x, y)];
+				}
+			}
+
+			_chunks_size.x = _bounds.width() + 1;
+			_chunks_size.y = _bounds.height() + 1;
+
+			_chunks_offset = -_bounds.min;
+
+			_chunks = std::move(new_chunks);
+		}
+
+
+		void shape::Serialize(std::ostream& write_stream) const
+		{
+			// write with format: 
+			// v1.1
+			// [R] [G] [B]
+			// [Min Bounds X] [Min Bounds Y] [Max Bounds X] [Max Bounds Y]
+			// [Image Width] [Image Height]
+			// [Chunk Offset X] [Chunk Offset Y]
+			// [Chunk Count]
+			// [_chunks.size()]
+			// [Chunks]
+			// [Border Size]
+			// [Border]
+			// [Border Points Size]
+			// [Border Points]
+
+			write_stream << "v1.1" << std::endl;
+			write_stream << _color.R << " " << _color.G << " " << _color.B << std::endl;
+			write_stream << _bounds.min.x << " " << _bounds.min.y << " " << _bounds.max.x << " " << _bounds.max.y << std::endl;
+			write_stream << _chunks_size.x << " " << _chunks_size.y << std::endl;
+			write_stream << _chunks_offset.x << " " << _chunks_offset.y << std::endl;
+			write_stream << _chunk_count << std::endl;
+
+			write_stream << _chunks.size() << std::endl;
+			for (const auto& chunk : _chunks)
+			{
+				write_stream << chunk << " ";
+			}
+			write_stream << std::endl;
+
+			write_stream << _outer_edge.size() << std::endl;
+			for (const auto& edge : _outer_edge)
+			{
+				write_stream << edge.x << " " << edge.y << " ";
+			}
+			write_stream << std::endl;
+
+			for (const auto& edge : _outer_edge_points)
+			{
+				write_stream << edge.x << " " << edge.y << " ";
+			}
+			write_stream << std::endl;
+		}
+
+		void shape::Deserialize(std::istream& read_stream)
+		{
+			std::string version;
+			read_stream >> version;
+			if (version != "v1.1")
+				throw std::invalid_argument("shape version was not v1.1");
+
+			shape deserialized;
+			read_stream >> deserialized._color.R >> deserialized._color.G >> deserialized._color.B;
+			read_stream >> deserialized._bounds.min.x >> deserialized._bounds.min.y >> deserialized._bounds.max.x >> deserialized._bounds.max.y;
+			read_stream >> deserialized._chunks_size.x >> deserialized._chunks_size.y;
+			read_stream >> deserialized._chunks_offset.x >> deserialized._chunks_offset.y;
+			read_stream >> deserialized._chunk_count;
+			
+			size_t chunk_count = 0;
+			read_stream >> chunk_count;
+			deserialized._chunks.resize(chunk_count);
+
+			for (int i = 0; i < chunk_count; ++i)
+			{
+				bool val;
+				read_stream >> val;
+				deserialized._chunks[i] = val;
+			}
+
+			size_t edge_count = 0;
+			read_stream >> edge_count;
+			deserialized._outer_edge.resize(edge_count);
+			
+			for (int i = 0; i < edge_count; ++i)
+			{
+				vector2 edge;
+				read_stream >> edge.x >> edge.y;
+				deserialized._outer_edge[i] = edge;
+			}
+
+			size_t edge_point_count = 0;
+			read_stream >> edge_point_count;
+			deserialized._outer_edge_points.resize(edge_point_count);
+
+			for (int i = 0; i < edge_point_count; ++i)
+			{
+				vector2i edge_spot;
+				read_stream >> edge_spot.x >> edge_spot.y;
+				deserialized._outer_edge_points[i] = edge_spot;
+			}
+
+			*this = std::move(deserialized);
+		}
+
+
+
+		pixel_scan::pixel_scan(const IPixelAccess& pixels) :
+			_image_size(pixels.get_width(), pixels.get_height()),
+			_image(pixels.get_width() * pixels.get_height()),
+			_image_shapes(pixels.get_width() * pixels.get_height(), -1)
+		{
+			if (pixels.get_width() < 1 || pixels.get_height() < 1)
+				throw std::invalid_argument("Can not accept pixels with no chunks in it");
 
 			auto index = indexer();
-			for (; pos.x < pos.x; ++pos.x)
+			for (int x = 0; x < pixels.get_width(); ++x)
 			{
-				for (; pos.y < pos.y; ++pos.y)
+				for (int y = 0; y < pixels.get_height(); ++y)
 				{
-					if (_image_shapes[index(pos.x, pos.y)] == -1)
-					{
-						return pos;
-					}
+					_image[index(x, y)] = pixels.get_pixel(x, y);
 				}
 			}
 		}
 
-		std::vector<vector2i> neighbours_of(vector2i spot)
+		pixel_scan::pixel_scan(std::istream& read_stream)
+		{
+			this->pixel_scan::Deserialize(read_stream);
+		}
+
+		bool pixel_scan::has_shape(vector2i spot) const
+		{
+			return is_inside_image(spot) && _image_shapes[indexer()(spot.x, spot.y)] != -1;
+		}
+
+		std::vector<vector2i> pixel_scan::neighbours_of(vector2i spot) const 
 		{
 			return {
 				{ spot.x - 1,	spot.y - 1	},
@@ -139,61 +386,21 @@ namespace vectorizer
 			};
 		}
 
-		inline bool is_outside_image(vector2i spot)
+		bool pixel_scan::is_outside_image(vector2i spot) const
 		{
 			return (spot.x < 0) | (spot.y < 0) | (spot.x >= _image_size.x) | (spot.y >= _image_size.y);
 		}
 
-		inline bool is_inside_image(vector2i spot)
+		bool pixel_scan::is_inside_image(vector2i spot) const
 		{
 			return (spot.x >= 0) & (spot.y >= 0) & (spot.x < _image_size.x) & (spot.y < _image_size.y);
 		}
 
-	public:
-		thingo(const chunkmap& map) :
-			_image_size(map.width(), map.height()),
-			_image(map.width()* map.height()),
-			_image_shapes(map.width()* map.height(), -1)
+
+
+		void pixel_scan::scan_for_shapes(float threshold)
 		{
-			if (map.width() < 1 || map.height() < 1)
-				throw std::invalid_argument("Can not accept chunkmap with no chunks in it");
-
-			auto index = indexer();
-			for (int x = 0; x < map.width(); ++x)
-				for (int y = 0; y < map.height(); ++y)
-				{
-					_image[index(x, y)] = map.get(x, y)->average_colour;
-				}
-		}
-
-		thingo(const Image& img) :
-			_image_size(img.width(), img.height()),
-			_image(img.width()* img.height()),
-			_image_shapes(img.width()* img.height(), -1)
-		{
-			if (img.width() < 1 || img.height() < 1)
-				throw std::invalid_argument("Can not accept Image with no pixels in it");
-
-			auto index = indexer();
-			for (int x = 0; x < img.width(); ++x)
-			{
-				for (int y = 0; y < img.height(); ++y)
-				{
-					_image[index(x, y)] = img.get(x, y);
-				}
-			}
-		}
-
-		inline constexpr const std::vector<shape>& shapes() const { return _shapes; }
-		inline constexpr dimensional_indexer indexer() const { return { _image_size.x }; }
-
-		inline bool has_shape(vector2i spot)
-		{
-			return is_inside_image(spot) && _image_shapes[indexer()(spot.x, spot.y)] != -1;
-		}
-
-		void scan_for_shapes(float threshold)
-		{
+			LOG_INFO("Scanning for shapes...");
 			_shapes.clear();
 
 			for (int i = 0; i < _image_shapes.size(); ++i)
@@ -259,7 +466,7 @@ namespace vectorizer
 			LOG_INFO("[BobSweeperV2] Scanned %u shapes", _shapes.size());
 		}
 
-		void average_colors()
+		void pixel_scan::average_colours()
 		{
 			auto index = indexer();
 			for (auto& shape : _shapes)
@@ -287,8 +494,9 @@ namespace vectorizer
 			}
 		}
 
-		void calculate_borders()
+		void pixel_scan::calculate_borders()
 		{
+			LOG_INFO("Calculating Shape Borders");
 			auto index = indexer();
 			for (auto& shape : _shapes)
 			{
@@ -315,7 +523,7 @@ namespace vectorizer
 					{
 						// Insert current edge
 						shape.insert_outer_edge((vector2)spot + edge.to_dir() * 0.5f);
-						shape.insert_epico(spot + edge.to_diri());
+						shape.insert_outer_edge_point(spot + edge.to_diri());
 
 						// Set next edge and spot
 						spot;
@@ -331,7 +539,7 @@ namespace vectorizer
 					{
 						// Insert current edge
 						shape.insert_outer_edge((vector2)spot + edge.to_dir() * 0.5f);
-						shape.insert_epico(spot + edge.to_diri());
+						shape.insert_outer_edge_point(spot + edge.to_diri());
 
 						// Set next edge and spot
 						spot = spot + edge.turned_by(1).to_diri();
@@ -345,7 +553,7 @@ namespace vectorizer
 
 					// Insert current edge
 					shape.insert_outer_edge((vector2)spot + edge.to_dir() * 0.5f);
-					shape.insert_epico(spot + edge.to_diri());
+					shape.insert_outer_edge_point(spot + edge.to_diri());
 
 					// Set next edge and spot
 					spot = spot + edge.turned_by(1).to_diri() + edge.to_diri();
@@ -357,205 +565,133 @@ namespace vectorizer
 			}
 			_has_borders = true;
 		}
-	};
 
-	void bobsweeperv2::fill_chunkmap(chunkmap& map, float threshold)
-	{
-		thingo thing = thingo(map);
 
-		thing.scan_for_shapes(40.f);
-
-		thing.calculate_borders();
-
-		Image img{ map.width(), map.height() };
-
-		for (int i = 0; i < thing.shapes().size(); ++i)
+		void pixel_scan::Serialize(std::ostream& write_stream) const
 		{
-			auto& s = thing.shapes()[i];
+			LOG_INFO("Serializing scan data");
+			// Write format
+			// v1
+			// [Has Borders]
+			// [Image Width] [Image Height]
+			// [Shape Count]
+			// [Shapes]
+			// [Image Count]
+			// [Image Colors]
+			// [Image Shapes]
 
-			for (auto& edge : s.thingo())
+			write_stream << "v1" << std::endl;
+			write_stream << _has_borders << std::endl;
+			write_stream << _image_size.x << " " << _image_size.y << std::endl;
+			write_stream << _shapes.size() << std::endl;
+			for (const auto& shape : _shapes)
 			{
-				img.set(edge.x, edge.y, s.color());
+				shape.Serialize(write_stream);
+			}
+			write_stream << _image.size() << std::endl;
+			for (const auto& color : _image)
+			{
+				write_stream << color.R << " " << color.G << " " << color.B << " ";
+			}
+			write_stream << std::endl;
+			for (const auto& shape_index : _image_shapes)
+			{
+				write_stream << shape_index << " ";
 			}
 		}
 
-		img.to_png("epic borders.png");
-
-		Image shape_img{ map.width(), map.height() };
-		for (auto& shape : thing.shapes())
+		void pixel_scan::Deserialize(std::istream& read_stream)
 		{
-			for (int x = shape.bounds().min.x; x <= shape.bounds().max.x; ++x)
+			LOG_INFO("Deserializing scan data");
+			std::string version;
+			read_stream >> version;
+			if (version != "v1")
+				throw std::invalid_argument("File does not match version");
+
+			pixel_scan deserialized;
+
+			read_stream >> deserialized._has_borders;
+			read_stream >> deserialized._image_size.x >> deserialized._image_size.y;
+
+			int shape_count;
+			read_stream >> shape_count;
+
+			deserialized._shapes = std::vector<shape>(shape_count);
+			for (int i = 0; i < shape_count; ++i)
 			{
-				for (int y = shape.bounds().min.y; y < shape.bounds().max.y; ++y)
+				deserialized._shapes[i].Deserialize(read_stream);
+			}
+
+			int image_count;
+			read_stream >> image_count;
+
+			deserialized._image = std::vector<pixelF>(image_count);
+			for (int i = 0; i < image_count; ++i)
+			{
+				read_stream >> deserialized._image[i].R >> deserialized._image[i].G >> deserialized._image[i].B;
+			}
+
+			deserialized._image_shapes = std::vector<int>(image_count);
+			for (int i = 0; i < image_count; ++i)
+			{
+				read_stream >> deserialized._image_shapes[i];
+			}
+
+			*this = std::move(deserialized);
+		}
+
+		void pixel_scan::to_svg(std::string svg_path)
+		{
+			if (!_has_borders)
+			{
+				LOG_INFO("[BobSweeperV2] data indicates no existing borders");
+				calculate_borders();
+			}
+
+			std::vector<scan::shape> sorted_shapes = shapes();
+
+			struct
+			{
+				bool operator()(const scan::shape& lhs, const scan::shape& rhs) const { return lhs.bounds().area() > rhs.bounds().area(); }
+			} customLess;
+
+			std::sort(sorted_shapes.begin(), sorted_shapes.end(), customLess);
+
+			std::ofstream out_svg{ svg_path };
+
+			if (!out_svg)
+			{
+				LOG_ERR("[BobSweeperV2] Failed to open '%s' for writing.. :/", svg_path.c_str());
+				throw std::invalid_argument("Unusable file path to write to");
+			}
+
+			out_svg << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?> <svg xmlns = \"http://www.w3.org/2000/svg\" xmlns:xlink = \"http://www.w3.org/1999/xlink\" version = \"2\" width = \"";
+			out_svg << (float)_image_size.x;
+			out_svg << "\" height = \"";
+			out_svg << (float)_image_size.y;
+			out_svg << "\" viewport = \"0 0 " << (float)_image_size.x << " " << (float)_image_size.y << "\" >";
+			out_svg << std::endl;
+
+			for (auto& shape : sorted_shapes)
+			{
+				out_svg << "<path fill=\"rgb(" << shape.color().R * 255.f << ", " << shape.color().G * 255.f << ", " << shape.color().B * 255.f << ")\" d=\"";
+				out_svg << "M " << shape.outer_edge()[0].x << " " << shape.outer_edge()[0].y << " ";
+				for (int i = 1; i < shape.outer_edge().size(); ++i)
 				{
-					if (shape.has(vector2i{ x,y }))
-						shape_img.set(x, y, shape.color());
+					out_svg << " L " << shape.outer_edge()[i].x << " " << shape.outer_edge()[i].y;
 				}
+				out_svg << " Z\" />" << std::endl;
 			}
+
+			out_svg << " </svg>";
 		}
 
-		shape_img.to_png("epic shapes.png");
-
-		LOG_INFO("[BobSweeperv2] Found %u shapes", thing.shapes().size());
-
-
-	}
-
-	void bobsweeperv2::process_image(chunkmap& map, float threshold, std::string svg_path)
-	{
-		LOG_INFO("[BobSweeperV2] with threshold: %.1f", threshold);
-
-		thingo thing = thingo(map);
-
-		thing.scan_for_shapes(threshold);
-		//thing.average_colors();
-		thing.calculate_borders();
-
-		Image border_img{ map.width(), map.height() };
-
-		for (int i = 0; i < thing.shapes().size(); ++i)
+		void pixel_scan::compress_shapes()
 		{
-			auto& s = thing.shapes()[i];
-
-			for (auto& edge : s.thingo())
+			for (auto& shape : _shapes)
 			{
-				border_img.set(edge.x, edge.y, s.color());
+				shape.compress_chunks();
 			}
 		}
-
-		border_img.to_png("epic borders.png");
-
-		Image shape_img = std::move(border_img);
-		shape_img.clear();
-		for (auto& shape : thing.shapes())
-		{
-			for (int x = shape.bounds().min.x; x <= shape.bounds().max.x; ++x)
-			{
-				for (int y = shape.bounds().min.y; y <= shape.bounds().max.y; ++y)
-				{
-					if (shape.has(vector2i{ x,y }))
-						shape_img.set(x, y, shape.color());
-				}
-			}
-		}
-
-		shape_img.to_png("epic shapes.png");
-
-
-		std::vector<shape> sorted_shapes = thing.shapes();
-
-		struct
-		{
-			bool operator()(const shape& lhs, const shape& rhs) const { return lhs.bounds().area() > rhs.bounds().area(); }
-		} customLess;
-
-		std::sort(sorted_shapes.begin(), sorted_shapes.end(), customLess);
-
-		std::ofstream out_svg{ svg_path };
-
-		if (!out_svg)
-		{
-			LOG_ERR("[BobSweeperV2] Failed to open '%s' for writing.. :/", svg_path.c_str());
-			throw std::invalid_argument("Unusable file path to write to");
-		}
-
-		out_svg << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?> <svg xmlns = \"http://www.w3.org/2000/svg\" xmlns:xlink = \"http://www.w3.org/1999/xlink\" version = \"2\" width = \"";
-		out_svg << (float)map.width();
-		out_svg << "\" height = \"";
-		out_svg << (float)map.height();
-		out_svg << "\" viewport = \"0 0 " << (float)map.width() << " " << (float)map.height() << "\" >";
-		out_svg << std::endl;
-
-		for (auto& shape : sorted_shapes)
-		{
-			out_svg << "<path fill=\"rgb(" << shape.color().R * 255.f << ", " << shape.color().G * 255.f << ", " << shape.color().B * 255.f << ")\" d=\"";
-			out_svg << "M " << shape.outer_edge()[0].x << " " << shape.outer_edge()[0].y << " ";
-			for (int i = 1; i < shape.outer_edge().size(); ++i)
-			{
-				out_svg << " L " << shape.outer_edge()[i].x << " " << shape.outer_edge()[i].y;
-			}
-			out_svg << " Z\" />" << std::endl;
-		}
-
-		out_svg << " </svg>";
-	}
-
-	void bobsweeperv2::process_image(const Image& img, float threshold, std::string svg_path)
-	{
-		LOG_INFO("[BobSweeperV2] with threshold: %.1f", threshold);
-
-		thingo thing = thingo(img);
-
-		thing.scan_for_shapes(threshold);
-		thing.average_colors();
-		thing.calculate_borders();
-
-		Image border_img{ img.width(), img.height() };
-
-		for (int i = 0; i < thing.shapes().size(); ++i)
-		{
-			auto& s = thing.shapes()[i];
-
-			for (auto& edge : s.thingo())
-			{
-				border_img.set(edge.x, edge.y, s.color());
-			}
-		}
-
-		border_img.to_png("epic borders.png");
-
-		Image shape_img = std::move(border_img);
-		shape_img.clear();
-		for (auto& shape : thing.shapes())
-		{
-			for (int x = shape.bounds().min.x; x <= shape.bounds().max.x; ++x)
-			{
-				for (int y = shape.bounds().min.y; y <= shape.bounds().max.y; ++y)
-				{
-					if (shape.has(vector2i{ x,y }))
-						shape_img.set(x, y, shape.color());
-				}
-			}
-		}
-
-		shape_img.to_png("epic shapes.png");
-
-
-		std::vector<shape> sorted_shapes = thing.shapes();
-
-		struct
-		{
-			bool operator()(const shape& lhs, const shape& rhs) const { return lhs.bounds().area() < rhs.bounds().area(); }
-		} customLess;
-
-		std::sort(sorted_shapes.begin(), sorted_shapes.end(), customLess);
-
-		std::ofstream out_svg{ svg_path };
-
-		if (!out_svg)
-		{
-			LOG_ERR("[BobSweeperV2] Failed to open '%s' for writing.. :/", svg_path.c_str());
-			throw std::invalid_argument("Unusable file path to write to");
-		}
-
-		out_svg << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?> <svg xmlns = \"http://www.w3.org/2000/svg\" xmlns:xlink = \"http://www.w3.org/1999/xlink\" version = \"2\" width = \"";
-		out_svg << (float)img.width();
-		out_svg << "\" height = \"";
-		out_svg << (float)img.height();
-		out_svg << "\" viewport = \"0 0 " << (float)img.width() << " " << (float)img.height() << "\" >";
-		out_svg << std::endl;
-
-		for (auto& shape : sorted_shapes)
-		{
-			out_svg << "<path fill=\"rgb(" << shape.color().R << ", " << shape.color().G << ", " << shape.color().B << ")\" d=\"";
-			out_svg << "M " << shape.outer_edge()[0].x << " " << shape.outer_edge()[0].y << " ";
-			for (int i = 1; i < shape.outer_edge().size(); ++i)
-			{
-				out_svg << " L " << shape.outer_edge()[i].x << " " << shape.outer_edge()[i].y;
-			}
-			out_svg << " Z\" />" << std::endl;
-		}
-
-		out_svg << " </svg>";
 	}
 }

@@ -2,5 +2,5 @@
 
 int main(int argc, char* argv[])
 {
-    return entrypoint(argc, argv);
+    return vectorizer::entrypoint(argc, argv);
 }

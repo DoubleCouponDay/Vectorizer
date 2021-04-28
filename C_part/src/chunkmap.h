@@ -59,10 +59,13 @@ namespace vectorizer
         inline virtual pixel get_pixel(int x, int y) const override { if (in_bounds(x, y)) return groups[x][y]->average_colour; return pixel{}; }
         inline virtual void set_pixel(int x, int y, pixel pix) override { if (in_bounds(x, y)) groups[x][y]->average_colour = pix; }
 
-        inline virtual int get_width() const override { return width(); }
-        inline virtual int get_height() const override { return height(); }
+        inline virtual size_t get_width() const override { return width(); }
+        inline virtual size_t get_height() const override { return height(); }
 
         inline bool in_bounds(int x, int y) const { return width() > 0 && height() > 0 && x >= 0 && y >= 0 && x < width() && y < height(); }
+
+        std::list<std::shared_ptr<chunkshape>>& shapes();
+        const std::list<std::shared_ptr<chunkshape>>& shapes() const;
 
         bool chunks_to_file(char* file) const;
         bool shapes_to_file(char* file) const;
@@ -77,7 +80,7 @@ namespace vectorizer
 
     typedef struct
     {
-        char* file_path;
+        std::string file_path;
         int chunk_size;
         float shape_colour_threshhold;
         int num_colours;

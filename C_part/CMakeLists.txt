@@ -20,4 +20,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "./src/entrypoint
 add_executable(${PROJECT_NAME}_bin "${PROJECT_SOURCE_DIR}/src/binary/main.cpp")
 target_link_libraries(${PROJECT_NAME}_bin ${PROJECT_NAME})
 
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+set_property(TARGET ${PROJECT_NAME}_bin PROPERTY CXX_STANDARD 17)
+
 file(COPY "../template.svg" DESTINATION "./bin")

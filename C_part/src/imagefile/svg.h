@@ -6,6 +6,9 @@
 #include "chunkmap.h"
 #include "nsvg/usage.h"
 
-bool write_svg_file(const nsvg_ptr& input);
+namespace vectorizer
+{
+	bool write_svg_file(const nsvg_ptr& input);
 
-constexpr char* OUTPUT_PATH = "output.svg";
+	constexpr char* OUTPUT_PATH = "output.svg";
+}

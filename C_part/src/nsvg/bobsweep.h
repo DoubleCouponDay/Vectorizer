@@ -2,10 +2,13 @@
 
 #include "ishapefinder.h"
 
-void sweepfill_chunkmap(chunkmap& map, float threshold);
-
-class bobsweeper : public IShapeFinder
+namespace vectorizer
 {
-public:
-    void fill_chunkmap(chunkmap& map, float threshold) override;
-};
+    void sweepfill_chunkmap(chunkmap& map, float threshold);
+
+    class bobsweeper : public IShapeFinder
+    {
+    public:
+        void fill_chunkmap(chunkmap& map, float threshold) override;
+    };
+}

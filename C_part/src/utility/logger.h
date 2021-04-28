@@ -1,6 +1,9 @@
 #pragma once
 
-void logger(const char* tag, const char* message, ...);
+namespace vectorizer
+{
+	void logger(const char* tag, const char* message, ...);
+}
 
 #ifdef _WIN32
 #define LOG_INFO(fmt, ...) logger("INFO", "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__)

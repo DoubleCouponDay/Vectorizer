@@ -22,12 +22,12 @@ namespace vectorizer
 
     pixelD pixelD::lerp(pixelD a, pixelD b, float t)
     {
-        return pixelD(::lerp(a.R, b.R, t), ::lerp(a.G, b.G, t), ::lerp(a.B, b.B, t));
+        return pixelD(vectorizer::lerp(a.R, b.R, t), vectorizer::lerp(a.G, b.G, t), vectorizer::lerp(a.B, b.B, t));
     }
 
     pixelF pixelF::lerp(pixelF a, pixelF b, float t)
     {
-        return pixelF(::lerp(a.R, b.R, t), ::lerp(a.G, b.G, t), ::lerp(a.B, b.B, t));
+        return pixelF(vectorizer::lerp(a.R, b.R, t), vectorizer::lerp(a.G, b.G, t), vectorizer::lerp(a.B, b.B, t));
     }
 
     bool pixelF::is_similar_to(const pixelF& other, float threshold)

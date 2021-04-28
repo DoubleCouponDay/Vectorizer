@@ -22,8 +22,7 @@ namespace vectorizer
     /// Allocate memory to hold the image contents
     /// Read the image into the memory
     /// Convert the obtained memory into a contiguous format (convert the row pointers from a 2 dimensional array into a single array)
-    Image convert_png_to_image(char* fileaddress) {
-        LOG_INFO("Converting '%s' to png file...", fileaddress);
+    Image convert_png_to_image(const char* fileaddress) {
 
         if (fileaddress == NULL) {
             LOG_ERR("Fileaddress was null");
@@ -39,7 +38,6 @@ namespace vectorizer
             throw std::invalid_argument((std::string("Could not open file: '") + fileaddress + "'").c_str());
 
         /// Verify File
-        LOG_INFO("Checking if file is PNG type");
 
         unsigned char header[8];
         fread(header, 1, 8, file_p);
@@ -51,7 +49,6 @@ namespace vectorizer
         }
 
         /// Prepare and read structs
-        LOG_INFO("Creating png_image struct");
 
         png_byte color_type, bit_depth;
 
@@ -59,8 +56,6 @@ namespace vectorizer
         png_image image_struct;
         image_struct.opaque = NULL;
         image_struct.version = PNG_IMAGE_VERSION;
-
-        LOG_INFO("creating pnglib read struct...");
 
         png_structp read_struct = png_create_read_struct(
             PNG_LIBPNG_VER_STRING, NULL, NULL, NULL
@@ -73,7 +68,6 @@ namespace vectorizer
             return Image();
         }
 
-        LOG_INFO("Creating pnglib info struct...");
         png_infop info = png_create_info_struct(read_struct);
 
         if (!info)
@@ -90,15 +84,12 @@ namespace vectorizer
             return Image();
         }
 
-        LOG_INFO("Beginning PNG Reading ");
-
         // Start Reading
         png_init_io(read_struct, file_p);
         png_set_sig_bytes(read_struct, 8);
 
         png_read_info(read_struct, info);
 
-        LOG_INFO("Reading Image width/height and allocating Image space");
         Image output{ png_get_image_width(read_struct, info), png_get_image_height(read_struct, info) };
 
         color_type = png_get_color_type(read_struct, info);
@@ -125,14 +116,8 @@ namespace vectorizer
             return Image();
         }
 
-        LOG_INFO("Allocating row pointers...");
-
-        LOG_INFO("dimensions: %d x %d ", output.width(), output.height());
-
         // Allocate row pointers to be filled
         std::vector<std::vector<png_byte>> data(output.height(), std::vector<png_byte>(png_get_rowbytes(read_struct, info)));
-
-        LOG_INFO("reading the Image...");
 
         // Switch to RGB format, and fill the row pointers with values
         {
@@ -143,13 +128,9 @@ namespace vectorizer
             png_read_image(read_struct, unsafe_data.data());
         }
 
-        LOG_INFO("closing Image file...");
-
         // Clean up the file
         fclose(file_p);
         png_destroy_read_struct(&read_struct, &info, NULL);
-
-        LOG_INFO("putting dereferenced row pointers in custom struct...");
 
         if (color_type == PNG_COLOR_TYPE_RGB)
         {
@@ -179,14 +160,13 @@ namespace vectorizer
             throw std::invalid_argument("png file was not a supported color type");
         }
 
-        LOG_INFO("png file converted to Image struct.");
         return output;
     }
 
 
     void write_image_to_png(const Image& img, const char* fileaddress)
     {
-        if (img.pixels.empty() || !fileaddress) {
+        if (img.empty() || !fileaddress) {
             LOG_ERR("null arguments given to write_image_to_png");
             setError(NULL_ARGUMENT_ERROR);
             return;
@@ -370,7 +350,7 @@ namespace vectorizer
 
         Image img = Image{ map.width(), map.height() };
 
-        for (auto& shape : map.shape_list)
+        for (auto& shape : map.shapes())
         {
             iterate_through_shape(shape->chunks, img);
         }

@@ -183,7 +183,7 @@ namespace vectorizer
 
     struct dimensional_indexer
     {
-        constexpr dimensional_indexer(int width, int height = 0) : width(width), height(height) {}
+        explicit constexpr dimensional_indexer(int width, int height = 0) : width(width), height(height) {}
 
         int width;
         int height;
