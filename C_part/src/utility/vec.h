@@ -129,6 +129,8 @@ namespace vectorizer
         inline constexpr vector2i operator+(const vector2i& other) const { return { x + other.x, y + other.y }; }
         inline constexpr vector2i operator-(const vector2i& other) const { return { x - other.x, y - other.y }; }
         inline constexpr vector2i operator-() const { return { -x, -y }; }
+        inline vector2i& operator+=(const vector2i& other) { x += other.x; y += other.y; return *this; }
+        inline vector2i& operator-=(const vector2i& other) { x -= other.x; y -= other.y; return *this; }
 
         inline constexpr bool operator==(const vector2i& other) const { return x == other.x && y == other.y; }
         inline constexpr bool operator!=(const vector2i& other) const { return x != other.x || y != other.y; }
@@ -155,7 +157,43 @@ namespace vectorizer
         }
     };
 
-    typedef vector2i sizei;
+    struct sizei
+    {
+        sizei() = default;
+        constexpr sizei(const sizei & other) = default;
+        constexpr sizei(size_t x, size_t y = 0) : x(x), y(y) {};
+
+        size_t x;
+        size_t y;
+
+        inline constexpr sizei operator+(const sizei & other) const { return { x + other.x, y + other.y }; }
+
+        inline constexpr bool operator==(const sizei & other) const { return x == other.x && y == other.y; }
+        inline constexpr bool operator!=(const sizei & other) const { return x != other.x || y != other.y; }
+
+        inline explicit constexpr operator vector2() const { return vector2{ (float)x, (float)y }; }
+
+        inline constexpr sizei rotated_by(int turns) const
+        {
+            switch (turns % 4)
+            {
+            case +1:
+            case -3:
+                return sizei{ y, -x };
+            case +2:
+            case -2:
+                return sizei{ -x, -y };
+            case +3:
+            case -1:
+                return sizei{ -y, x };
+            default:
+            case 0:
+                return *this;
+            }
+        }
+    };
+
+    typedef sizei vector2u;
 
     struct bounds2di
     {
@@ -183,16 +221,16 @@ namespace vectorizer
 
     struct dimensional_indexer
     {
-        explicit constexpr dimensional_indexer(int width, int height = 0) : width(width), height(height) {}
+        explicit constexpr dimensional_indexer(size_t width, size_t height = 0) : width(width), height(height) {}
 
-        int width;
-        int height;
+        size_t width;
+        size_t height;
 
         inline constexpr int index(int x, int y) const { return x + y * width; }
         inline constexpr int index(int x, int y, int z) const { return x + y * width + z * width * height; }
         inline constexpr int index(vector2i spot) const { return index(spot.x, spot.y); }
 
-        inline constexpr vector2i reverse(int index) const { return { index % width, index / width }; }
+        inline constexpr vector2i reverse(int index) const { return { index % (int)width, index / (int)width }; }
 
         inline constexpr int operator()(int x, int y) const { return index(x, y); }
         inline constexpr int operator()(int x, int y, int z) const { return index(x, y, z); }

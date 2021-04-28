@@ -85,6 +85,10 @@ namespace vectorizer
 			void average_colours();
 			void calculate_borders();
 
+			void shapes_to_png(std::string png_path);
+			void shape_to_png(size_t shape, std::string png_path);
+			void border_to_png(size_t border, std::string png_path);
+			void borders_to_png(std::string png_path);
 			void to_svg(std::string svg_path);
 
 			void compress_shapes();

@@ -429,7 +429,7 @@ namespace vectorizer
 
 	int command_write_borders(const std::vector<std::string>& args)
 	{
-		if (args.size() <= 0)
+		if (args.size() < 1)
 		{
 			std::cout << "write-borders needs an input path!" << std::endl;
 			return -1;
@@ -437,16 +437,18 @@ namespace vectorizer
 		else
 		{
 			std::string input_path = args[0];
-			std::string output_path = get_string_after(args, { "--output-path", "-out", "-o" }).value_or("output.svg");
+			std::string output_path = get_string_after(args, { "--output-path", "-out", "-o" }).value_or("borders.png");
 
 
 
 			std::ifstream input_file{ input_path };
 			scan::pixel_scan scan{ input_file };
 
+			scan.calculate_borders();
 
+			scan.borders_to_png(output_path);
 
-			std::cout << "Successfully [command] \'" << input_path << "\' to \'" << output_path << "\' with " << std::endl;
+			std::cout << "Successfully writen " << scan.shapes().size() << " borders from \'" << input_path << "\' to \'" << output_path << "\'" << std::endl;
 		}
 
 		return 0;
@@ -454,16 +456,90 @@ namespace vectorizer
 
 	int command_write_border(const std::vector<std::string>& args)
 	{
+		if (args.size() < 2)
+		{
+			std::cout << "write-border needs an input path and a number!" << std::endl;
+			return -1;
+		}
+		else
+		{
+			std::string input_path = args[0];
+			size_t shape_index = std::stoul(args[1]);
+
+			std::string output_path = get_string_after(args, { "--output-path", "-out", "-o" }).value_or(std::string("border ") + std::to_string(shape_index) + ".png");
+
+			std::ifstream input_file{ input_path };
+			scan::pixel_scan scan{ input_file };
+
+			if (shape_index >= scan.shapes().size())
+			{
+				LOG_ERR("Shape %u is too high! Scan only has %u shapes", shape_index, scan.shapes().size());
+				return -1;
+			}
+
+			scan.calculate_borders();
+
+			scan.border_to_png(shape_index, output_path);
+
+			std::cout << "Successfully writen shape " << shape_index << "'s borders from \'" << input_path << "\' to \'" << output_path << "\'" << std::endl;
+		}
+
 		return 0;
 	}
 
 	int command_write_shapes(const std::vector<std::string>& args)
 	{
+		if (args.size() < 1)
+		{
+			std::cout << "write-shapes needs an input path!" << std::endl;
+			return -1;
+		}
+		else
+		{
+			std::string input_path = args[0];
+			std::string output_path = get_string_after(args, { "--output-path", "-out", "-o" }).value_or("shapes.png");
+
+
+
+			std::ifstream input_file{ input_path };
+			scan::pixel_scan scan{ input_file };
+
+			scan.shapes_to_png(output_path);
+
+			std::cout << "Successfully writen " << scan.shapes().size() << " borders from \'" << input_path << "\' to \'" << output_path << "\'" << std::endl;
+		}
+
 		return 0;
 	}
 
 	int command_write_shape(const std::vector<std::string>& args)
 	{
+		if (args.size() < 2)
+		{
+			std::cout << "write-shapes needs an input path and a number!" << std::endl;
+			return -1;
+		}
+		else
+		{
+			std::string input_path = args[0];
+			size_t shape_index = std::stoul(args[1]);
+
+			std::string output_path = get_string_after(args, { "--output-path", "-out", "-o" }).value_or(std::string("shape ") + std::to_string(shape_index) + ".png");
+
+			std::ifstream input_file{ input_path };
+			scan::pixel_scan scan{ input_file };
+
+			if (scan.shapes().size() <= shape_index)
+			{
+				LOG_ERR("Shape %u is too high! Data only has %u shapes!", scan.shapes().size());
+				return -1;
+			}
+
+			scan.shape_to_png(shape_index, output_path);
+
+			std::cout << "Successfully writen shape " << shape_index << " from \'" << input_path << "\' to \'" << output_path << "\'" << std::endl;
+		}
+
 		return 0;
 	}
 

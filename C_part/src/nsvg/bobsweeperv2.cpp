@@ -192,13 +192,16 @@ namespace vectorizer
 
 		bool shape::has(vector2i spot) const
 		{
+			spot += _chunks_offset;
 			if (spot.x < 0 || spot.y < 0 || spot.x >= _chunks_size.x || spot.y >= _chunks_size.y) 
 				return false; 
-			return _chunks[indexer()(spot - _chunks_offset)];
+			return _chunks[indexer()(spot)];
 		}
 
 		void shape::insert_chunk(vector2i at)
 		{
+			if (_chunks_offset != vector2i{ 0, 0 })
+				throw std::logic_error("Inserting chunks into a compressed chunk is not implemented");
 			if (at.x < _bounds.min.x)
 				_bounds.min.x = at.x;
 			if (at.y < _bounds.min.y)
@@ -208,7 +211,7 @@ namespace vectorizer
 			if (at.y > _bounds.max.y)
 				_bounds.max.y = at.y;
 
-			_chunks[indexer()(at - _chunks_offset)] = true;
+			_chunks[indexer()(at)] = true;
 			++_chunk_count;
 		}
 
@@ -229,11 +232,11 @@ namespace vectorizer
 
 			std::vector<bool> new_chunks = std::vector<bool>();
 			new_chunks.resize((_bounds.width() + 1) * (_bounds.height() + 1));
-			dimensional_indexer indexer{ _bounds.width() + 1 };
+			dimensional_indexer indexer{ (size_t)_bounds.width() + 1 };
 
-			for (int x = _bounds.min.x; x < _bounds.max.x; ++x)
+			for (int x = _bounds.min.x; x <= _bounds.max.x; ++x)
 			{
-				for (int y = _bounds.min.y; y < _bounds.max.y; ++y)
+				for (int y = _bounds.min.y; y <= _bounds.max.y; ++y)
 				{
 					new_chunks[indexer(x - _bounds.min.x, y - _bounds.min.y)] = _chunks[this->indexer()(x, y)];
 				}
@@ -285,6 +288,7 @@ namespace vectorizer
 			}
 			write_stream << std::endl;
 
+			write_stream << _outer_edge_points.size() << std::endl;
 			for (const auto& edge : _outer_edge_points)
 			{
 				write_stream << edge.x << " " << edge.y << " ";
@@ -564,6 +568,97 @@ namespace vectorizer
 				}
 			}
 			_has_borders = true;
+		}
+
+		void pixel_scan::shapes_to_png(std::string png_path)
+		{
+			Image shape_img = Image{ _image_size.x, _image_size.y };
+			for (auto& shape : shapes())
+			{
+				for (int x = shape.bounds().min.x; x <= shape.bounds().max.x; ++x)
+				{
+					for (int y = shape.bounds().min.y; y <= shape.bounds().max.y; ++y)
+					{
+						if (shape.has(vector2i{ x,y }))
+							shape_img.set(x, y, shape.color());
+					}
+				}
+			}
+
+			shape_img.to_png(png_path.c_str());
+		}
+
+		void pixel_scan::shape_to_png(size_t shape_index, std::string png_path)
+		{
+			if (shape_index >= _shapes.size())
+				return;
+
+			Image shape_img = Image{ _image_size.x, _image_size.y };
+
+			const auto& shape = _shapes[shape_index];
+
+			LOG_INFO("Shape %u has color (%.2f, %.2f, %.2f) and %u chunks", shape_index, shape.color().R, shape.color().G, shape.color().B, shape.chunk_count());
+			if (vector3{ shape.color().R, shape.color().G, shape.color().B }.sqr_mag() < 0.15f)
+			{
+				shape_img.clear(pixelF{ 0.8f, 0.8f, 0.8f });
+				LOG_INFO("Background color has been inverted (its now white)");
+			}
+			else
+				LOG_INFO("Background color is normal (its black)");
+
+			for (int x = shape.bounds().min.x; x <= shape.bounds().max.x; ++x)
+			{
+				for (int y = shape.bounds().min.y; y <= shape.bounds().max.y; ++y)
+				{
+					if (shape.has(vector2i{ x,y }))
+						shape_img.set(x, y, shape.color());
+				}
+			}
+
+			shape_img.to_png(png_path.c_str());
+		}
+
+		void pixel_scan::border_to_png(size_t border, std::string png_path)
+		{
+			if (border >= _shapes.size())
+				return;
+
+			Image border_img{ _image_size.x, _image_size.y };
+
+			const auto& shape = _shapes[border];
+
+			LOG_INFO("Shape %u has color (%.2f, %.2f, %.2f) and %u chunks", border, shape.color().R, shape.color().G, shape.color().B, shape.chunk_count());
+			if (vector3{ shape.color().R, shape.color().G, shape.color().B }.sqr_mag() < 0.15f)
+			{
+				border_img.clear(pixelF{ 0.8f, 0.8f, 0.8f });
+				LOG_INFO("Shape has a very dark color, Background color has been inverted (its now white)");
+			}
+			else
+				LOG_INFO("Shape does not have a very dark color, Background color is normal (its black)");
+
+			for (auto& edge : shape.outer_edge_points())
+			{
+				border_img.set(edge.x, edge.y, shape.color());
+			}
+
+			border_img.to_png(png_path.c_str());
+		}
+
+		void pixel_scan::borders_to_png(std::string png_path)
+		{
+			Image border_img{ _image_size.x, _image_size.y };
+
+			for (int i = 0; i < shapes().size(); ++i)
+			{
+				auto& s = shapes()[i];
+
+				for (auto& edge : s.outer_edge_points())
+				{
+					border_img.set(edge.x, edge.y, s.color());
+				}
+			}
+
+			border_img.to_png(png_path.c_str());
 		}
 
 
