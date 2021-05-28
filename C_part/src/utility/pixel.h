@@ -14,7 +14,8 @@ namespace vectorizer
 
         byte R, G, B;
 
-        bool is_similar_to(const pixel& other, float threshold);
+        bool is_similar_to(const pixel& other, float threshold) const;
+        float difference_from(const pixel& other) const;
     };
 
     struct pixelInt
@@ -29,6 +30,7 @@ namespace vectorizer
         inline pixelInt& operator+=(const pixel& p) { R += p.R; G += p.G; B += p.B; return *this; }
 
         bool is_similar_to(const pixelInt& other, float threshold);
+        float difference_from(const pixelInt& other) const;
     };
 
     struct pixelD

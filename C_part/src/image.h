@@ -61,4 +61,31 @@ namespace vectorizer
         std::vector<std::vector<pixel>> pixels;
 
     };
+
+    template<class T>
+    class Bitmap
+    {
+    public:
+        explicit Bitmap() : _items{}, _index{ 0, 0 } {}
+        Bitmap(size_t width, size_t height) : _items(width* height), _index{ width, height } {}
+
+        Bitmap(Bitmap<T>&& other) noexcept : _items(std::move(other._items)), _index(other._index) { other._items.clear(); other._index.width = other._index.height = 0; }
+        explicit Bitmap(const Bitmap<T>& other) : _items(other._items), _index(other._index) {}
+
+        inline Bitmap& operator=(const Bitmap& other) { _items.assign(other._items.begin(), other._items.end()); _index = other._index; }
+        inline Bitmap& operator=(Bitmap&& other) { _items = std::move(other._items); _index = other._index;  other._items.clear(); other._index.width = other._index.height = 0; }
+
+        inline size_t width() const { return _index.width; }
+        inline size_t height() const { return _index.height; }
+
+        const T& get(int x, int y) const { return _items[_index(x, y)]; }
+        T& get(int x, int y) { return _items[_index(x, y)]; }
+
+        void set(int x, int y, const T& item) { _items[_index(x, y)] = item; }
+
+    private:
+
+        std::vector<T> _items;
+        dimensional_indexer _index;
+    };
 }

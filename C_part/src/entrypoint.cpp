@@ -19,6 +19,7 @@
 #include "nsvg/bobsweep.h"
 #include "nsvg/bobsweeperv2.h"
 #include "nsvg/dcdfiller.h"
+#include "reduce.h"
 
 namespace vectorizer
 {
@@ -113,6 +114,10 @@ namespace vectorizer
 		std::cout << "\t" << "\t" << "writes the [shape number]-th shape in the given existing shape data to output png path \n";
 		std::cout << "\n";
 		std::cout << std::endl;
+		std::cout << "\t" << "reduce [input image path] [neighbour reach] [threshold] [output png path]\n";
+		std::cout << "\t" << "\t" << "reduces given image (input image path) with [neighbour reach] depth and [threshold] threshold to output png path\n";
+		std::cout << "\n";
+		std::cout << std::endl;
 	}
 
 	int command_normal(const std::vector<std::string>& args);
@@ -123,6 +128,7 @@ namespace vectorizer
 	int command_write_border(const std::vector<std::string>& args);
 	int command_write_shapes(const std::vector<std::string>& args);
 	int command_write_shape(const std::vector<std::string>& args);
+	int command_reduce(const std::vector<std::string>& args);
 
 	std::optional<std::string> get_string_after(const std::vector<std::string>& args, const std::vector<std::string>& values)
 	{
@@ -200,6 +206,10 @@ namespace vectorizer
 			else if (command == "write-shape" || command == "ws")
 			{
 				return command_write_shape(args);
+			}
+			else if (command == "reduce" || "r")
+			{
+				return command_reduce(args);
 			}
 			else
 			{
@@ -538,6 +548,35 @@ namespace vectorizer
 			scan.shape_to_png(shape_index, output_path);
 
 			std::cout << "Successfully writen shape " << shape_index << " from \'" << input_path << "\' to \'" << output_path << "\'" << std::endl;
+		}
+
+		return 0;
+	}
+
+	int command_reduce(const std::vector<std::string>& args)
+	{
+		if (args.size() <= 0)
+		{
+			std::cout << "reduce needs at least a path, neighbour reach and threshold!" << std::endl;
+			return -1;
+		}
+		else
+		{
+			std::string input_path = args[0];
+			size_t reach = std::stoul(args[1]);
+			float threshold = std::stof(args[2]);
+			std::string output_path = get_string_after(args, { "--output-path", "-out", "-o" }).value_or("reduced.png");
+
+			reducer reduction{ reach, threshold };
+
+			Image to_reduce = Image(input_path);
+
+			Image reduced = reduction.reduce_image(to_reduce);
+
+			reduced.to_png(output_path.c_str());
+
+
+			std::cout << "Successfully reduced \'" << input_path << "\' to \'" << output_path << "\' with reach: " << reach << ", and threshold: " << threshold << std::endl;
 		}
 
 		return 0;
